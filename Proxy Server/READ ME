@@ -1,0 +1,43 @@
+@Author Anshika Mehndiratta, Balakumar Jayaraman
+Project : A sample HTTP Proxy server and HTTP Proxy client application based on the TCP Protocol.
+Team Number : 31
+Team Members : Anshika Mehndiratta, Balakumar Jayaraman
+
+The basic functionality of the application is :
+1. Start the HTTP Proxy server on a particular port, with which multiple HTTP Proxy clients can connect.
+2. Each client can request a webpage(URL) to the server and gets back a response and exits.
+3. The server first looks up the cache to determine if it has the web page.
+4. If page is not in the cache, it is got from the web-server and sent to the client.
+5. It then checks if the Expires time of the cache entry exceeds the current time. If so, it sends a conditional GET to the web-server.
+6. If the webpage is not expired on the web-server, the proxy server receives a 304 Not Modified response, and it returns the cached page to the client.
+   It updates the cache with the lastAccessed time.
+7. If the webpage is expired on the web-server, the proxy server receives a 200 OK response, and it returns the new page to the client, and updates it in cache. 
+8. The cache has a maximum limit of 10 entries. When a entry comes in and the cache is full, an entry is removed in the LRu fashion.
+   That is, the the entry in the cache that has not been accessed for the longest time period is removed.
+
+It consists of 4 source files :
+
+1. ProxyServer.cpp
+2. ProxyClient.cpp
+3. HttpProxy.h
+4. HttpProxy.cpp
+
+and a Makefile.
+
+1) ProxyServer.cpp : This is the main proxy server file, where server is started and server accepts proxy client connections. 
+                     It performs the basic functionality of the proxy server as mentioned above.
+
+2) ProxyClient.cpp : Connects to the proxy server. It sends a GET request to the server. 
+                     It receives a response from the proxy server which contains the requested web page. 
+
+3) HttpProxy.h : Contains the classes such as Entity Header and Entity(Entity Header is composed in Entity)
+
+4) HttpProxy.cpp : Contains the member functions of classes EntityHeader and EntityBody. Also contains some other funtions relevant to Time and parsing the response.
+
+How to run this application :
+
+1. Unzip the folder.
+2. Open the terminal from the folder.
+3. Run the following command : make -f Makefile
+4. From a terminal, run : ./Server <IP-address> <port no.>
+5. From multiple terminals, run : ./Client <username> <Server-IP-address> <URL of webpage>
