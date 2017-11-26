@@ -1,1 +1,1 @@
-# ECEN602
+# ECEN602 Computer Communication and Networks
