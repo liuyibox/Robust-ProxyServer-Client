@@ -40,4 +40,4 @@ How to run this application :
 2. Open the terminal from the folder.
 3. Run the following command : make -f Makefile
 4. From a terminal, run : ./Server <IP-address> <port no.>
-5. From multiple terminals, run : ./Client <username> <Server-IP-address> <URL of webpage>
+5. From multiple terminals, run : ./Client <IP-address> <port no.> <URL of webpage>
