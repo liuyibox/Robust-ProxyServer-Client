@@ -15,7 +15,7 @@ using namespace std;
 
 
 class Header {
-public:
+    public:
     Header();
 };
 
@@ -35,7 +35,7 @@ class Entity_Header : public Header {
 
     time_t last_accessed;
 
-public:
+    public:
     Entity_Header();
     void set_content_type(string);
     void set_content_encoding(string);
@@ -64,7 +64,7 @@ class Entity {
     Entity_Header* header;
     string body;
 
-public:
+    public:
     Entity();
 
     void set_header(Entity_Header *);
