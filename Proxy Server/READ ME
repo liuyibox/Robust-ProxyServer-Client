@@ -39,5 +39,5 @@ How to run this application :
 1. Unzip the folder.
 2. Open the terminal from the folder.
 3. Run the following command : make -f Makefile
-4. From a terminal, run : ./Server <IP-address> <port no.>
-5. From multiple terminals, run : ./Client <IP-address> <port no.> <URL of webpage>
+4. From a terminal, run : ./sout <IP-address> <port no.>
+5. From multiple terminals, run : ./clout <IP-address> <port no.> <URL of webpage>
