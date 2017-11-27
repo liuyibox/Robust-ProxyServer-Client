@@ -1,0 +1,40 @@
+/*
+This instruction shows how to run and test the Simple HTTP Proxy
+*/
+
+Team Members : Liuyi Jin, Yinan Zhu
+
+
+
+ARCHITECTURE:
+1. ProxyServer.cpp:
+The proxy server is started and accepts connections from proxy clients.
+
+2. ProxyClient.cpp:
+The proxy client sends a GET request to the proxy server
+and receives a response from the proxy server with the requested web page.
+
+3. HttpProxy.cpp:
+It contains the functions of EntityHeader and EntityBody
+and some other functions: time and parsing the response.
+
+4. HttpProxy.h:
+It contains the classes: Entity Header and Entity.
+
+
+
+USAGE:
+1. compile files:
+make
+
+2. run the server
+./server <ip_address> <port number>
+you should see:
+Welcome to the HTTP Proxy server.
+
+3. then run the client
+./client <ip_address> <port number> <URL>
+you should see:
+Connected
+Going to hit the proxy server with the request:
+GET <URL> HTTP/1.0
