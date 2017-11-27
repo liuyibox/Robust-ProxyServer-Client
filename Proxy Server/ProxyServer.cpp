@@ -135,7 +135,7 @@ int main(int argc, char*argv[]) {
 
     fdmax = serverSd;
 
-    cout<<"Welcome to the HTTP Proxy server."<<endl;
+    cout<<"Welcome to the Simple HTTP Proxy!"<<endl;
 
     while(1) {
 
@@ -243,7 +243,7 @@ void cache_add(string url, Entity *entity) {
 
     if (ca.size() < MAX_CACHE_SIZE) {
 
-        cout<<"Current size of cache: "<<ca.size()<<", is smaller than the max, directly inserting"<<endl;
+        cout<<"Current size of cache: "<<ca.size()<<", smaller than the max, directly adding"<<endl;
 
         entity = stamp_page(entity);
         ca.insert(make_pair(url, entity));
@@ -585,7 +585,7 @@ Entity* page_not_found(string url) {
 
     if (new_page != NULL) {
 
-        cout<<"We have a new page"<<endl;
+        cout<<"Got a new page"<<endl;
 
     }
 
