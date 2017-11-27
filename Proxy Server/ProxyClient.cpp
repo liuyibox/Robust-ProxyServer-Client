@@ -41,7 +41,7 @@ int main(int argc, char* argv[]) {
 //    char* errorMessage = strerror_r(errno, errorbuffer, 256);
 
 //    printf(errorMessage);
-//    cout << errorMessage << endl;
+//	  cout << errorMessage << endl;
 
         exit(1);
 
@@ -62,7 +62,7 @@ int main(int argc, char* argv[]) {
 //    char* errorMessage = strerror_r(errno, errorbuffer, 256);
 
 //    printf(errorMessage);
-//    cout << errorMessage << endl;
+//	  cout << errorMessage << endl;
 
         exit(1);
 
@@ -88,7 +88,7 @@ int main(int argc, char* argv[]) {
     } else {
 
         string recvd(recv_buffer, byte);
-        cout << "Got the content from: "+url << endl;
+        cout << "Got the content from: " + url << endl;
 
     }
 
