@@ -3,326 +3,409 @@
 #include<sstream>
 #include<map>
 #include<stdio.h>
-#include"HttpProxy.h"
 #include<stdlib.h>
 #include<vector>
 #include<time.h>
+#include"HttpProxy.h"
+
+
 
 using namespace std;
 
-//global stuff
-string expires("Expires");
-string lastMod("Last-Modified");
+
 string date("Date");
-//string _format_ = string();
-//char* format = _format_.c_str();
+
+string lastMod("Last-Modified");
+
+string expires("Expires");
+
 
 char* format = strdup("%a, %d %b %Y %H:%M:%S %Z");
 
-Header::Header()
-{
-}
 
-EntityHeader::EntityHeader()
-{
-}
+Entity_Header::Entity_Header() {
 
-void EntityHeader::setContentType(string conType)
-{
-  contentType = conType;
-}
-
-void EntityHeader::setContentEncoding(string conEncoding)
-{
-  contentEncoding = conEncoding;
-}
-
-void EntityHeader::setExpires(string ex)
-{
-  expires = ex;
-}
-
-void EntityHeader::setDate(string d)
-{
-  date = d;
-}
-
-void EntityHeader::setLastModified(string lm)
-{
-  lastModified = lm;
-}
-
-void EntityHeader::setLastAccessed(time_t la)
-{
-  lastAccessed = la;
-}
-
-string EntityHeader::getContentType()
-{
-  return contentType;
-}
-
-string EntityHeader::getContentEncoding()
-{
-  return contentEncoding;
-}
-
-string EntityHeader::getExpires()
-{
-  return expires;
-}
-
-string EntityHeader::getLastModified()
-{
-  return lastModified;
-}
-
-time_t EntityHeader::getLastAccessed()
-{
-  return lastAccessed;
-}
-
-string EntityHeader::getDate()
-{
-  return date;
-}
-
-string EntityHeader::toString()
-{
-  string space(" ");
-  string retval = contentType+space+contentEncoding;
-  return retval.c_str();
 }
 
 
-Entity::Entity()
-{
-}
+Header::Header() {
 
-void Entity::setHeader(EntityHeader* h)
-{
-  header = h;
-}
-
-void Entity::setBody(string b)
-{
-  body = b;
-}
-
-EntityHeader* Entity::getHeader()
-{
-  return header;
-}
-
-string Entity::getBody()
-{
-  return body;
-}
-
-string Entity::toString()
-{
-  string newline("\n");
-  string retval = header->toString()+newline+body;
-  return retval;
-}
-
-string extractRequestUri(char* httpRequestLine)
-{
-  char* token = (char*)malloc(sizeof(char*)); 
-  token = strtok(httpRequestLine, " ");
-  char* tokens[3];
-  int i = 0;
-  while(token != NULL)
-  {
-    tokens[i] = token;
-    token = strtok(NULL, " ");
-    i++;
-  }
-
-  //now get the uri
-  string reqUri(tokens[1]);
-  return reqUri;
 }
 
 
-bool isGetReq(char* t)
-{
-  string st(t);
-  string getSt("GET");
+void Entity_Header::set_content_encoding(string con_encoding) {
 
-  if(getSt == st)
-    return 1;
-  else
-    return 0;
+    content_encoding = con_encoding;
+
 }
 
 
-//Entity* parseResponse(string response, int responseLen)
-Entity* parseResponse(string response)
-{  
-  Entity* entity = new Entity;
-  EntityHeader* hdr = new EntityHeader;
+void Entity_Header::set_content_type(string con_type) {
 
-  //cout<<"Going to parse the following "<<responseLen<<" response from the Web server:"<<endl;
-  cout<<response;
-  cout<<endl<<endl;
+    content_type = con_type;
 
-  string delim("\r\n\r\n");
-  string s_response = response;
-  vector<string> toplevel = strsplit(response, delim); 
+}
 
-  if(toplevel.size() == 1 || toplevel.size() > 2)
-  {
-    cout<<"Not allowed.. response should have only header and body"<<endl;
-    cout<<"The no of tokens in the response \""<<s_response<<"\" is "<<toplevel.size()<<endl;
-    exit(1);
-  }
 
-  //now take the header and break it up
-  string httpHdr = toplevel.at(0);
-  delim = "\r\n";
-  vector<string> responseHdrFields = strsplit(httpHdr, delim);
-  if(responseHdrFields.size() == 0)
-  {
-    cout<<"No tokens found in the http header \""<<httpHdr<<"\""<<endl;
-    exit(1);
-  }
+void Entity_Header::set_last_modified(string lm) {
 
-  //now iterate thru the header fields and look for 
-  //stuff like Expires, Last-modified, Date etc
+    last_modified = lm;
 
-  int numFields = responseHdrFields.size();
-  vector<string> fieldTokens;
-  //cout<<"status line: "<<responseHdrFields.at(0)<<endl;
-  delim = ": ";
-  for(int i=1; i<numFields; i++) //because first line is the status line
-  {
-    //first parse each line using ':'
-    fieldTokens = strsplit(responseHdrFields.at(i), delim);
+}
 
-    if(fieldTokens.at(0) == expires)
-      hdr->setExpires(fieldTokens.at(1));
-    else if(fieldTokens.at(0) == lastMod)
-      hdr->setLastModified(fieldTokens.at(1));
-    else if(fieldTokens.at(0) == date)
-      hdr->setDate(fieldTokens.at(1));
 
-  }
+void Entity_Header::set_last_accessed(time_t la) {
 
-  //set the last accessed time as the current time
-  time_t curr = getCurrentTime(); 
-  hdr->setLastAccessed(curr);
-  
-  //now set the body
-  string httpBody = toplevel.at(1);
-  entity->setBody(s_response);
-  entity->setHeader(hdr);
-  //cout<<"the html body is \""<<httpBody<<"\""<<endl;
+    last_accessed = la;
 
-  return entity;
-} 
+}
 
-vector<string> strsplit(string s, string delim)
-{
-  vector<string> tokens;
-  int start = 0;
-  int len = s.length();
-  size_t f;
-  int found;
-  string token;
-  while(start < len)
-  {
-    f = s.find(delim, start);
-    if(f == string::npos)
-    {
-      //this could be the last token, or the
-      //patter does not exist in this string
-      tokens.push_back(s.substr(start));
-      break;
+
+void Entity_Header::set_expires(string exp) {
+
+    expires = exp;
+
+}
+
+void Entity_Header::set_date(string d) {
+
+    date = d;
+
+}
+
+
+string Entity_Header::get_content_encoding() {
+
+    return content_encoding;
+
+}
+
+
+string Entity_Header::get_content_type() {
+
+    return content_type;
+
+}
+
+
+string Entity_Header::get_last_modified() {
+
+    return last_modified;
+
+}
+
+
+time_t Entity_Header::get_last_accessed() {
+
+    return last_accessed;
+
+}
+
+
+string Entity_Header::get_expires() {
+
+    return expires;
+
+}
+
+
+string Entity_Header::get_date() {
+
+    return date;
+
+}
+
+
+string Entity_Header::to_string() {
+
+    string space(" ");
+    string retval = content_type + space + content_encoding;
+
+    return retval.c_str();
+
+}
+
+
+Entity::Entity() {
+
+}
+
+
+Entity_Header* Entity::get_header() {
+
+    return header;
+
+}
+
+
+string Entity::get_body() {
+
+    return body;
+
+}
+
+
+void Entity::set_header(Entity_Header *h) {
+
+    header = h;
+
+}
+
+
+void Entity::set_body(string b) {
+
+    body = b;
+
+}
+
+
+string Entity::to_string() {
+
+    string new_line("\n");
+    string retval = header->to_string() + new_line + body;
+
+    return retval;
+
+}
+
+
+string extract_uri(char *http_request) {
+
+    char* token = (char*)malloc(sizeof(char*));
+    token = strtok(http_request, " ");
+
+    int i = 0;
+    char* tokens[3];
+
+    while (token != NULL) {
+
+        tokens[i] = token;
+        token = strtok(NULL, " ");
+
+        i++;
+
     }
 
-    found = int(f);
-    token = s.substr(start, found - start);
-    tokens.push_back(token);
-    
-    start = found + delim.length();
-  }
+    string req_uri(tokens[1]);
 
-  /*cout<<"Printing"<<tokens.size()<<" tokens"<<endl;
-  for(int i=0; i<tokens.size(); i++)
-  {
-    cout<<tokens.at(i)<<endl;
-  }*/
-  return tokens;
-}
+    return req_uri;
 
-/*
- * Return the time diff between time2 and time1 in seconds; time2 >= time1
- */
-double timeDiff(string time2, string time1)
-{
-  time_t t1 = toTimeT(time1);
-  time_t t2 = toTimeT(time2);
-
-  return difftime(t2, t1);
 }
 
 
-/*
- * converts a string to a time_t object which holds the local time
- */
-time_t toTimeT(string t)
-{
-  if(t.empty())
-  {
-    cout<<"The time string is null"<<endl;
-    return -1;
-  }
- 
-  struct tm tm1;
-  char* ret = strptime(t.c_str(), format, &tm1);
-  if(ret == NULL)
-  {
-    cout<<"The string "<<t<<" was not recognized as a date format"<<endl;
-    return -1;
-  }
-  
-  time_t t1 = timegm(&tm1);
-  return t1; 
+bool is_get_req(char *t) {
+
+    string get_St("GET");
+    string st(t);
+
+    if (get_St == st) {
+
+        return 1;
+
+    } else {
+
+        return 0;
+
+    }
+
 }
 
 
-/*
- * display a time_t object in UTC
- */
-string fromTimeT(time_t t)
-{
-  struct tm* lt = gmtime(&t);
-  char stime[30];
 
-  strftime(stime, 30, format, lt);
-  string s(stime, 30);
-  return s;
+Entity* parse_response(string res) {
+
+    Entity_Header* hdr = new Entity_Header;
+    Entity* entity = new Entity;
+
+
+    cout<<res;
+    cout<<endl<<endl;
+
+    string s_response = res;
+    string delim("\r\n\r\n");
+
+    vector<string> top_level = string_split(res, delim);
+
+    if (top_level.size() == 1 || top_level.size() > 2) {
+
+        cout<<"Response should have only header and body"<<endl;
+        cout<<"The no of tokens \""<<s_response<<"\" is "<<top_level.size()<<endl;
+
+        exit(1);
+
+    }
+
+    string http_Hdr = top_level.at(0);
+    delim = "\r\n";
+    vector<string> response_Hdr_fields = string_split(http_Hdr, delim);
+    if (response_Hdr_fields.size() == 0) {
+
+        cout<<"No tokens found in the http header \""<<http_Hdr<<"\""<<endl;
+        exit(1);
+
+    }
+
+    // iterate the header to find fields like Expires, Last-modified and Date
+    int num_fields = response_Hdr_fields.size();
+
+    vector<string> field_tokens;
+    delim = ": ";
+
+    for (int i = 1; i < num_fields; i++) {
+
+        //first parse each line using ':'
+        field_tokens = string_split(response_Hdr_fields.at(i), delim);
+
+        if (field_tokens.at(0) == expires) {
+
+            hdr->set_expires(field_tokens.at(1));
+
+        } else if(field_tokens.at(0) == lastMod) {
+
+            hdr->set_last_modified(field_tokens.at(1));
+
+        } else if(field_tokens.at(0) == date) {
+
+            hdr->set_date(field_tokens.at(1));
+
+        }
+
+    }
+
+    time_t curr = get_current_time();
+    hdr->set_last_accessed(curr);
+
+    string httpBody = top_level.at(1);
+
+    entity->set_body(s_response);
+    entity->set_header(hdr);
+
+    return entity;
+
 }
 
 
-time_t getCurrentTime()
-{
-  struct tm* tm1;
-  time_t local = time(NULL);
-  tm1 = gmtime(&local);
-  time_t localutc = timegm(tm1);
-  return localutc;
+
+double timediff(string time2, string time1) {
+
+    // return the difference between time 2 and time 1
+
+    time_t t1 = to_Time_T(time1);
+    time_t t2 = to_Time_T(time2);
+
+    return difftime(t2, t1);
+
 }
 
 
-/*
- * stamp the entity with the current timestamp
- */
-Entity* stampPage(Entity* en)
-{
-  EntityHeader* hdr = en->getHeader();
-  hdr->setLastAccessed(getCurrentTime());
-  en->setHeader(hdr);
-  return en;
+
+vector<string> string_split(string s, string delim) {
+
+    vector<string> tokens;
+
+    int len = s.length();
+    int start = 0;
+
+    int found;
+    size_t f;
+
+    string token;
+
+    while (start < len) {
+
+        f = s.find(delim, start);
+
+        if (f == string::npos) {
+
+            tokens.push_back(s.substr(start));
+
+            break;
+
+        }
+
+        found = int(f);
+        token = s.substr(start, found - start);
+
+        tokens.push_back(token);
+
+        start = found + delim.length();
+
+    }
+
+    return tokens;
+
+}
+
+
+
+string from_Time_T(time_t t) {
+
+    struct tm* lt = gmtime(&t);
+    char s_time[30];
+
+    strftime(s_time, 30, format, lt);
+    string s(s_time, 30);
+
+    return s;
+
+}
+
+
+
+time_t to_Time_T(string t) {
+
+    // convert a string to hold local time
+
+    if (t.empty()) {
+
+        cout<<"The time string is null"<<endl;
+
+        return -1;
+
+    }
+
+    struct tm tm1;
+    char* ret = strptime(t.c_str(), format, &tm1);
+
+    if (ret == NULL) {
+
+        cout<<"The string "<<t<<" was not recognized as a date format"<<endl;
+
+        return -1;
+
+    }
+
+    time_t t1 = timegm(&tm1);
+
+    return t1;
+
+}
+
+
+
+Entity* stamp_page(Entity *en) {
+
+    // stamp with the current timestamp
+
+    Entity_Header* hdr = en->get_header();
+
+    hdr->set_last_accessed(get_current_time());
+    en->set_header(hdr);
+
+    return en;
+
+}
+
+
+
+time_t get_current_time() {
+
+    struct tm* tm1;
+
+    time_t local = time(NULL);
+    tm1 = gmtime(&local);
+    time_t local_utc = timegm(tm1);
+
+    return local_utc;
+
 }
