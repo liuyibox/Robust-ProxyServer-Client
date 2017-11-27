@@ -1,557 +1,703 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <iostream>
-#include <string>
-#include <map>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <string.h>
 #include <stdlib.h>
 #include <netdb.h>
 #include <arpa/inet.h>
-#include <errno.h>
+#include <string>
+#include <map>
 #include <limits.h>
+#include <errno.h>
 #include "HttpProxy.h"
+
+
 
 using namespace std;
 
-string notModified("304");
-map<string, Entity*> cache;
-
-string getContentFromWebServer(string, int*);
-string getContentFromWebServerIfModified(string, int*, string);
-void cacheAdd(string, Entity*);
-void cacheUpdate(string, Entity*);
-void printCache();
-Entity* pageFound(string);
-Entity* pageNotFound(string);
-
-int main(int argc, char*argv[]) 
-{
-  int i, clientSd, fdmax;
-  fd_set readfds;
-  fd_set master;
-  int max_clients = 5;
-  char copybuffer[1024];
-  char recvbuffer[1024];
-  char errorbuffer[256];
-  
-  
-  if(argc < 3)
-  {
-    fprintf(stderr, "Error: Not enough command line inputs \n");
-    exit(1);
-  }
 
 
-  int serverSd = socket(AF_INET, SOCK_STREAM, 0);
-//		cout << "server sd: " << serverSd << endl;
-  if(serverSd < 0)
-  {
-    fprintf(stderr,"Server socket creation error\n");
-    char* errorMessage = strerror_r(errno, errorbuffer, 256);
-//    printf(errorMessage);
-	cout << errorMessage << endl;
-    exit(1);
-  }
+string not_modified("304");
 
-  int yes = 1;
-  if(setsockopt(serverSd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int)) == -1)
-  {
-    perror("setsockopt error");
-    char* errorMessage = strerror_r(errno, errorbuffer, 256 );
-//    printf(errorMessage);
-	cout << errorMessage << endl;
-    exit(1);
-  }        
+map<string, Entity*> ca;
 
-  struct sockaddr_in serverAddrInfo;
-  memset((char*) &serverAddrInfo, '0', sizeof(struct sockaddr_in));
-  serverAddrInfo.sin_family= AF_INET;
-  serverAddrInfo.sin_port = htons(atoi(argv[2]));
-  inet_pton(AF_INET, argv[1], &serverAddrInfo.sin_addr);
+string get_content_from_web_server(string, int *);
+string get_content_from_web_server_if_modified(string, int *, string);
 
-  struct sockaddr_in clientAddrInfo;
+void cache_add(string, Entity *);
 
-  if(bind(serverSd, (struct sockaddr*) &serverAddrInfo, sizeof(serverAddrInfo))==-1) 
-  {
-    fprintf(stderr, "Server bind error\n");
-    char * errorMessage = strerror_r(errno, errorbuffer, 256);
-//    printf(errorMessage);
-	cout << errorMessage << endl;
-    exit(2);
-  }
+void cache_update(string, Entity *);
 
-  if(listen(serverSd, max_clients) < 0)
-  {
-    fprintf(stderr, "Listen error");
-    char* errorMessage = strerror_r(errno, errorbuffer, 256 );
-//    printf(errorMessage);
-	cout << errorMessage << endl;
-    exit(3);
-  }
+void print_cache();
 
-  FD_ZERO(&readfds);
-  FD_ZERO(&master);
+Entity* page_found(string);
 
-  FD_SET(serverSd, &master);
-  fdmax = serverSd;
-  cout<<"Welcome to the HTTP Proxy server."<<endl;
+Entity* page_not_found(string);
 
-//	cout << "server sd: " << serverSd << endl;
-  while(1)
-  {
-    printf("\n");
-    readfds = master;
-    memset(copybuffer, 0, sizeof(copybuffer));
-    memset(recvbuffer, 0, sizeof(recvbuffer));
 
-    if(select(fdmax+1, &readfds, NULL, NULL, NULL) == -1) 
-    {
-      fprintf(stderr, "Select error\n");
-      char* errorMessage = strerror_r(errno, errorbuffer, 256);
-//      printf(errorMessage);
-	cout << errorMessage << endl;
-      exit(1);
+
+int main(int argc, char*argv[]) {
+
+    int i;
+    int clientSd;
+    int fdmax;
+
+    int maxclients = 5;
+
+    char copy_buffer[1024];
+
+    char recv_buffer[1024];
+
+    char error_buffer[256];
+
+    fd_set readfds;
+
+    fd_set master;
+
+    if (argc < 3) {
+
+        fprintf(stderr, "\nUsage: server <ip_address> <port number>\n");
+
+        exit(1);
+
     }
 
-    for(i=3; i<=fdmax; i++)
-    {
-      if(FD_ISSET(i, &readfds))
-      {
-        if(i == serverSd)
-	{
-	  u_int clientLen = sizeof(clientAddrInfo);
-	  clientSd = accept(serverSd, (struct sockaddr*) &clientAddrInfo, &clientLen);
- //          	cout << "client sd: " << clientSd << endl;
-	  if(clientSd < 0)
-	  {
-	    fprintf(stderr, "Could not accept connection\n");
-	    char* errorMessage = strerror_r(errno, errorbuffer, 256);
-//	    printf(errorMessage);
-		cout << errorMessage << endl;
-	  }
-	  else
-	  {
-	    FD_SET(clientSd, &master);
-            if(clientSd > fdmax)
-              fdmax = clientSd;
-	  }
+    int serverSd = socket(AF_INET, SOCK_STREAM, 0);
+
+    if (serverSd < 0) {
+
+        fprintf(stderr,"Server creating error\n");
+
+//        char* errorMessage = strerror_r(errno, errorbuffer, 256);
+//        printf(errorMessage);
+//        cout << errorMessage << endl;
+
+        exit(1);
+
+    }
+
+    int yes = 1;
+
+    if (setsockopt(serverSd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int)) == -1) {
+
+        perror("setsockopt error");
+
+//        char* errorMessage = strerror_r(errno, errorbuffer, 256 );
+//        printf(errorMessage);
+//        cout << errorMessage << endl;
+
+        exit(1);
+
+    }
+
+    struct sockaddr_in server_addr_info;
+
+    memset((char*) &server_addr_info, '0', sizeof(struct sockaddr_in));
+
+    server_addr_info.sin_family= AF_INET;
+
+    server_addr_info.sin_port = htons(atoi(argv[2]));
+
+    inet_pton(AF_INET, argv[1], &server_addr_info.sin_addr);
+
+    struct sockaddr_in client_addr_info;
+
+    if (bind(serverSd, (struct sockaddr*) &server_addr_info, sizeof(server_addr_info)) == -1) {
+
+        fprintf(stderr, "Server binding error\n");
+
+//        char * errorMessage = strerror_r(errno, errorbuffer, 256);
+//        printf(errorMessage);
+//        cout << errorMessage << endl;
+
+        exit(2);
+
+    }
+
+    if (listen(serverSd, maxclients) < 0) {
+
+        fprintf(stderr, "Listening error");
+
+//        char* errorMessage = strerror_r(errno, errorbuffer, 256 );
+//        printf(errorMessage);
+//	      cout << errorMessage << endl;
+
+        exit(3);
+    }
+
+    FD_ZERO(&readfds);
+
+    FD_ZERO(&master);
+
+    FD_SET(serverSd, &master);
+
+    fdmax = serverSd;
+
+    cout<<"Welcome to the HTTP Proxy server."<<endl;
+
+    while(1) {
+
+        printf("\n");
+        readfds = master;
+
+        memset(copy_buffer, 0, sizeof(copy_buffer));
+
+        memset(recv_buffer, 0, sizeof(recv_buffer));
+
+        if (select(fdmax + 1, &readfds, NULL, NULL, NULL) == -1) {
+
+            fprintf(stderr, "Select error\n");
+
+//            char* errorMessage = strerror_r(errno, errorbuffer, 256);
+//            printf(errorMessage);
+//	          cout << errorMessage << endl;
+
+            exit(1);
+
         }
-	else
-	{
-	  int b = recv(i, recvbuffer, sizeof(recvbuffer), 0);  
-	  if(b <= 0)
-	  {
-	    FD_CLR(i, &master);
-	    continue;
-	  }
 
-	  string str(recvbuffer, b);
-	  //parse the request
-          strcpy(copybuffer, recvbuffer);
-          string url = extractRequestUri(copybuffer);
-          cout<<"The following page has been requested: "<<url<<endl;
+        for (i = 3; i <= fdmax; i++) {
 
-          if(cache.count(url) == 0)
-          {
-            Entity* page = pageNotFound(url); 
-			string body = page->getBody();
-				
-			send(i, body.c_str(), body.length(), 0);
-			   
-			printCache();
-          }
-          else
-          {
-			Entity* page = pageFound(url);
-			string body = page->getBody();
+            if (FD_ISSET(i, &readfds)) {
 
-            send(i, body.c_str(), body.length(), 0);
-           
-            printCache();
-          }
-	}
-      }
+                if (i == serverSd) {
+
+                    u_int clientLen = sizeof(client_addr_info);
+                    clientSd = accept(serverSd, (struct sockaddr*) &client_addr_info, &clientLen);
+
+                    if (clientSd < 0) {
+
+                        fprintf(stderr, "Could not accept connection\n");
+//                        char* errorMessage = strerror_r(errno, errorbuffer, 256);
+//	                      printf(errorMessage);
+//		                  cout << errorMessage << endl;
+
+                    } else {
+
+                        FD_SET(clientSd, &master);
+
+                        if (clientSd > fdmax) {
+
+                            fdmax = clientSd;
+
+                        }
+
+                    }
+                } else {
+
+                    int b = recv(i, recv_buffer, sizeof(recv_buffer), 0);
+
+                    if (b <= 0) {
+
+                        FD_CLR(i, &master);
+
+                        continue;
+
+                    }
+
+                    string str(recv_buffer, b);
+
+                    strcpy(copy_buffer, recv_buffer);
+                    string url = extract_uri(copy_buffer);
+
+                    cout<<"The following page has been requested: "<<url<<endl;
+
+                    if (ca.count(url) == 0) {
+
+                        Entity* page = page_not_found(url);
+                        string body = page->get_body();
+
+                        send(i, body.c_str(), body.length(), 0);
+                        print_cache();
+
+                    } else {
+
+                        Entity* page = page_found(url);
+                        string body = page->get_body();
+
+                        send(i, body.c_str(), body.length(), 0);
+                        print_cache();
+
+                    }
+
+                }
+
+            }
+
+        }
+
     }
-  }
 
-  close(serverSd);
-  return 0;
+    close(serverSd);
+
+    return 0;
 }
 
 
-/*
- * method to add new entries to the cache using LRU
- */
-void cacheAdd(string url, Entity* entity)
-{
-  //first check if cache has empty places
-  if(cache.size() < MAX_CACHE_SIZE)
-  {
-    //just insert it and return
-    cout<<"Current size of cache: "<<cache.size()<<", is less than the max, so directly inserting"<<endl;
-    entity = stampPage(entity);
-    cache.insert(make_pair(url, entity));
-    return;
-  }
 
-  //now if cache is full, find an entity
-  //which can be replaced; i.e. the one which has the oldest
-  //last accessed time
-  int i=0;
-  time_t currentTime = getCurrentTime();
-  map<string, Entity*>::iterator leastRecentKey;
-  double maxTimeDiff=INT_MIN;
-  
-  map<string, Entity*>::iterator ii = cache.begin();
-  for(; ii != cache.end(); ii++)
-  {
-    Entity* en = ii->second;
-    time_t la = en->getHeader()->getLastAccessed();
-    double timediff = difftime(currentTime, la);
-    if(timediff > maxTimeDiff)
-    {
-      maxTimeDiff = timediff;
-      leastRecentKey = ii;
+void cache_add(string url, Entity *entity) {
+
+    // add new entries to the cache using LRU
+    
+    if (ca.size() < MAX_CACHE_SIZE) {
+
+        cout<<"Current size of cache: "<<ca.size()<<", is smaller than the max, directly inserting"<<endl;
+
+        entity = stamp_page(entity);
+        ca.insert(make_pair(url, entity));
+
+        return;
+
     }
-    i++;
-  }
 
-  //now we have the least recently used key in index leastRecent
-  cout<<"The least recently used page is "<<leastRecentKey->first<<", hence this entry will be replaced in the cache"<<endl;
-  cache.erase(leastRecentKey);
-  //entity = stampPage(entity);
-  cache.insert(make_pair(url, entity));
+    int i = 0;
+
+    time_t current_time = get_current_time();
+    map<string, Entity*>::iterator least_recent_key;
+
+    double max_time_diff = INT_MIN;
+
+    map<string, Entity*>::iterator it = ca.begin();
+    for (; it != ca.end(); it++) {
+
+        Entity* en = it->second;
+        time_t la = en->get_header()->get_last_accessed();
+        double time_diff = difftime(current_time, la);
+
+        if (time_diff > max_time_diff) {
+
+            max_time_diff = time_diff;
+            least_recent_key = it;
+
+        }
+
+        i++;
+    }
+
+    cout<<"The least recently used page is "<<least_recent_key->first<<", so it will be replaced in the cache"<<endl;
+
+    ca.erase(least_recent_key);
+    ca.insert(make_pair(url, entity));
 }
 
-/*
- * method to replace existing entries in cache
- */
-void cacheUpdate(string url, Entity* entity)
-{
-	string key;
-	map<string, Entity*>::iterator ii = cache.begin();
- 
-	for(; ii != cache.end(); ii++)
-	{
-		key = ii->first;
-		if(key == url)
-		{
-			cout<<"Entry found for page "<<key<<", this will be replaced with the new page now"<<endl;
-			cache.erase(key);
-			entity = stampPage(entity);
-			cache.insert(make_pair(url, entity));
+
+
+void cache_update(string url, Entity *entity) {
+
+    // replace existing entries in cache
+
+    string key;
+	map<string, Entity*>::iterator ii = ca.begin();
+
+    for (; ii != ca.end(); ii++) {
+
+        key = ii->first;
+        if (key == url) {
+
+			cout<<"Entry found for page "<<key<<", it will be replaced with the new page now"<<endl;
+
+			ca.erase(key);
+
+			entity = stamp_page(entity);
+
+			ca.insert(make_pair(url, entity));
+
 			break;
 		}
+
 	}
+
 }
 
 
-/*
- * method to get a page from the web server 
- */
-//string getContentFromWebServer(string url, int* pageLen)
-string getContentFromWebServer(string url)
-{
-  int breakpoint1, breakpoint2;
-  string servername, location;
-  char errorbuffer[256];
-  
-  breakpoint1 = url.find("/");
-  if(url.at(breakpoint1) == '/' && url.at(breakpoint1+1) == '/')
-  {
-    breakpoint2 = url.substr(breakpoint1+2, url.length()-1).find("/");
-    servername = url.substr(breakpoint1+2, breakpoint2);
-    location = url.substr(breakpoint2+breakpoint1+2, url.length()-1);
-  }
-  else
-  {
-    servername = url.substr(0, breakpoint1);
-    location = url.substr(breakpoint1, url.length()-1);
-  }
 
-  int httpsd;
-  if((httpsd = socket(AF_INET, SOCK_STREAM, 0)) == -1)
-  {
-    fprintf(stderr, "HTTP socket creation error\n");
-    char* errorMessage = strerror_r(errno, errorbuffer, 256);
-//    printf(errorMessage);
-	cout << errorMessage << endl;
-    exit(1);
-  }
+string get_content_from_web_server(string url) {
 
-  struct addrinfo *httpinfo;
-  struct addrinfo hints;
-  memset(&hints, 0, sizeof(hints));
-  hints.ai_family = AF_INET;
-  hints.ai_socktype = SOCK_STREAM;
-  if(getaddrinfo(servername.c_str(), "http", &hints, &httpinfo) != 0)
-  {
-    printf("getaddrinfo error\n");
-    char* errorMessage = strerror_r(errno, errorbuffer, 256);
-//    printf(errorMessage);
-	cout << errorMessage << endl;
-    exit(1);
-  }
+    // get a page from the web server
 
-  if(connect(httpsd, httpinfo->ai_addr, httpinfo->ai_addrlen) == -1)
-  {
-    fprintf(stderr, "Connection to http server error\n");
-    char* errorMessage = strerror_r(errno, errorbuffer, 256);
-//    printf(errorMessage);
-	cout << errorMessage << endl;
-    exit(1);
-  }
+    int break_point_1, break_point_2;
 
-  string message;
-  message = "GET "+url+" HTTP/1.0\r\n\r\n";
-  
-  cout<<endl<<endl; 
-  cout<<"Going to hit the web server with the request: "<<endl<<message;
+    string server_name;
+    string loc;
 
-  int bytes = 0;  
-  if((bytes = send(httpsd, message.c_str(), message.length(), 0)) <=0)
-  {
-    fprintf(stderr, "Send error\n");
-    char* errorMessage = strerror_r(errno, errorbuffer, 256);
-//    printf(errorMessage);
-	cout << errorMessage << endl;
-    exit(1);
-  }
-  
-  bytes = 0;
-  char recvbuffer[1048576]; //1MB
-  if((bytes = recv(httpsd, recvbuffer, 1048576, 0)) <= 0)
-  {
-    fprintf(stderr, "recv error\n");
-    char* errorMessage = strerror_r(errno, errorbuffer, 256);
-//    printf(errorMessage);
-	cout << errorMessage << endl;
-    exit(1);
-  }
-  
-//  *pageLen = bytes;
-  string str(recvbuffer);
-  return str;
-}
+    char error_buffer[256];
 
+    break_point_1 = url.find("/");
 
-/*
- * method to get a page from the web server only if modified 
- */
-//string getContentFromWebServerIfModified(string url, int* pageLen, string sinceTime)
-string getContentFromWebServerIfModified(string url, string sinceTime)
-{
-  cout<<"The page "<<url<<" has been found in cache but it has expired"<<endl;
+    if (url.at(break_point_1) == '/' && url.at(break_point_1+1) == '/') {
 
-  int breakpoint1, breakpoint2;
-  string servername, location;
-  char errorbuffer[256];
-  
-  breakpoint1 = url.find("/");
-  if(url.at(breakpoint1) == '/' && url.at(breakpoint1+1) == '/')
-  {
-    breakpoint2 = url.substr(breakpoint1+2, url.length()-1).find("/");
-    servername = url.substr(breakpoint1+2, breakpoint2);
-    location = url.substr(breakpoint2+breakpoint1+2, url.length()-1);
-  }
-  else
-  {
-    servername = url.substr(0, breakpoint1);
-    location = url.substr(breakpoint1, url.length()-1);
-  }
+        break_point_2 = url.substr(break_point_1+2, url.length()-1).find("/");
 
-  int httpsd;
-  if((httpsd = socket(AF_INET, SOCK_STREAM, 0)) == -1)
-  {
-    fprintf(stderr, "HTTP socket creation error\n");
-    char* errorMessage = strerror_r(errno, errorbuffer, 256);
-//    printf(errorMessage);
-	cout << errorMessage << endl;
-    exit(1);
-  }
+        server_name = url.substr(break_point_1+2, break_point_2);
+        loc = url.substr(break_point_2+break_point_1+2, url.length()-1);
 
-	cout << "we are in if modified, httpsd: " << httpsd << endl;
+    } else {
 
-  struct addrinfo *httpinfo;
-  struct addrinfo hints;
-  memset(&hints, 0, sizeof(hints));
-  hints.ai_family = AF_INET;
-  hints.ai_socktype = SOCK_STREAM;
-  if(getaddrinfo(servername.c_str(), "http", &hints, &httpinfo) != 0)
-  {
-    printf("getaddrinfo error\n");
-    char* errorMessage = strerror_r(errno, errorbuffer, 256);
-//    printf(errorMessage);
-	cout << errorMessage << endl;
-    exit(1);
-  }
+        server_name = url.substr(0, break_point_1);
+        loc = url.substr(break_point_1, url.length()-1);
 
-  if(connect(httpsd, httpinfo->ai_addr, httpinfo->ai_addrlen) == -1)
-  {
-    fprintf(stderr, "Connection to http server error\n");
-    char* errorMessage = strerror_r(errno, errorbuffer, 256);
-//    printf(errorMessage);
-	cout << errorMessage << endl;
-    exit(1);
-  }
+    }
 
-  int bytes = 0;
-  string message;
-  message = "GET "+url+" HTTP/1.0\r\n"+"If-Modified-Since: "+sinceTime+"\r\n\r\n";
-  cout<<endl<<endl;
-  cout<<"Going to hit the web server with the conditional request: "<<endl<<message;
+    int http_sd;
 
-  if((bytes = send(httpsd, message.c_str(), message.length(), 0)) <=0)
-  {
-    fprintf(stderr, "Send error\n");
-    char* errorMessage = strerror_r(errno, errorbuffer, 256);
-//    printf(errorMessage);
-	cout << errorMessage << endl;
-    exit(1);
-  }
-  
-  bytes = 0;
-  char recvbuffer[1048576]; //1MB
-  if((bytes = recv(httpsd, recvbuffer, 1048576, 0)) <= 0)
-  {
-    fprintf(stderr, "recv error\n");
-    char* errorMessage = strerror_r(errno, errorbuffer, 256);
-//    printf(errorMessage);
-	cout << errorMessage << endl;
-    exit(1);
-  }
-	close(httpsd);
-//  cout << "received buffer: "+ string(recvbuffer) << endl;
-//  cout << "received size: "<< bytes << endl;
-//  *pageLen = bytes;
-//	cout << "received size: "<< bytes << endl;
-  string str(recvbuffer);
+    if((http_sd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
 
-  //analyze the response
-  string temp(str);
-  vector<string> v1 = strsplit(temp, "\r\n");
-  string status(v1.at(0));
-  cout<<"The response from the web server is: "<<status<<endl<<endl;
-  
-  vector<string> v = strsplit(status, " ");
-  string blank;
-  if(v.at(1) == notModified)
-    return blank;
-  else
+        fprintf(stderr, "HTTP socket creating error\n");
+
+//        char* errorMessage = strerror_r(errno, errorbuffer, 256);
+//        printf(errorMessage);
+//	      cout << errorMessage << endl;
+
+        exit(1);
+
+    }
+
+    struct addrinfo *http_info;
+    struct addrinfo hints;
+
+    memset(&hints, 0, sizeof(hints));
+
+    hints.ai_family = AF_INET;
+
+    hints.ai_socktype = SOCK_STREAM;
+
+    if (getaddrinfo(server_name.c_str(), "http", &hints, &http_info) != 0) {
+
+        printf("getaddrinfo error\n");
+
+//        char* errorMessage = strerror_r(errno, errorbuffer, 256);
+//        printf(errorMessage);
+//        cout << errorMessage << endl;
+
+       exit(1);
+
+    }
+
+    if (connect(http_sd, http_info->ai_addr, http_info->ai_addrlen) == -1) {
+
+        fprintf(stderr, "Connecting to http server error\n");
+
+//        char* errorMessage = strerror_r(errno, errorbuffer, 256);
+//        printf(errorMessage);
+//	      cout << errorMessage << endl;
+
+        exit(1);
+
+    }
+
+    string msg;
+    msg = "GET " + url + " HTTP/1.0\r\n\r\n";
+
+    cout<<endl<<endl;
+
+    cout<<"Going to hit the web server with the request: "<<endl<<msg;
+
+    int byte = 0;
+
+    if ((byte = send(http_sd, msg.c_str(), msg.length(), 0)) <=0) {
+
+        fprintf(stderr, "Sending error\n");
+
+//        char* errorMessage = strerror_r(errno, errorbuffer, 256);
+//        printf(errorMessage);
+// 	      cout << errorMessage << endl;
+
+        exit(1);
+
+    }
+
+    byte = 0;
+    char recv_buffer[1048576];
+
+    if ((byte = recv(http_sd, recv_buffer, 1048576, 0)) <= 0) {
+
+        fprintf(stderr, "receiving error\n");
+
+//        char* errorMessage = strerror_r(errno, errorbuffer, 256);
+//        printf(errorMessage);
+//        cout << errorMessage << endl;
+
+        exit(1);
+    }
+
+    string str(recv_buffer);
+
     return str;
+
 }
 
 
-/*
- * method to handle pages that are found in the cache
- */
-Entity* pageFound(string url)
-{
-  map<string, Entity*>::iterator ii = cache.find(url);
-  Entity* en = ii->second;
-            
-  //now we first check if the page is expired
-  string expires = en->getHeader()->getExpires();
- 
-  //if Expires field is not there, use the Last-modified or the Date field, in that order
-  if(expires.empty())
-  {
-    expires = en->getHeader()->getLastModified();
-    if(expires.empty())
-      expires = en->getHeader()->getDate();
-  }
-  
-  int current, ex_int;
-  time_t ex = toTimeT(expires);
-  if(ex <= 0) //handle spl cases
-  {
-    //this means that either expires field was not there,
-    //or it had some value other than a date. In any case,
-    //make sure we go to webserver
-    cout<<"The expires field is not a timestamp: "<<expires;
-    ex_int = -1;
-  }
-  else
-    ex_int = int(ex);
-    
-  current = int(getCurrentTime());
-  if(current > ex_int)
-  {
-    //this means that the page has expired,
-    //so now we get it from the webserver or serve it from cache if not modified
-    cout<<"We have a page whose entry in the cache was expired"<<endl;
-//    int* pageLen;
-//    string pageExpired = getContentFromWebServerIfModified(url, pageLen, expires);
-    string pageExpired = getContentFromWebServerIfModified(url, expires);
 
-    //since we do a CONDITIONAL-GET, it could also be the case that there was no
-    //need to get the page from the web server; in that case the above string would be 
-    //empty
-    if(pageExpired.empty())
-    {
-      cout<<"No need to get the page "<<url<<" from the server as it was not modified on the server"<<endl;
-      en = stampPage(en); //serve from cache itself
-      return en;
+string get_content_from_web_server_if_modified(string url, string since_time) {
+
+    // get a page from the web server only if modified
+
+    cout<<"The page "<<url<<" has been found in cache but it has expired"<<endl;
+
+    int break_point_1, break_point_2;
+
+    string server_name;
+
+    string loc;
+
+    char errorbuffer[256];
+
+    break_point_1 = url.find("/");
+
+    if (url.at(break_point_1) == '/' && url.at(break_point_1+1) == '/') {
+
+        break_point_2 = url.substr(break_point_1+2, url.length()-1).find("/");
+
+        server_name = url.substr(break_point_1+2, break_point_2);
+
+        loc = url.substr(break_point_2+break_point_1+2, url.length()-1);
+
+    } else {
+
+        server_name = url.substr(0, break_point_1);
+        loc = url.substr(break_point_1, url.length()-1);
+
     }
-    else
-    {
-//      Entity* newEntity = parseResponse(pageExpired, *pageLen);
-      Entity* newEntity = parseResponse(pageExpired);
-      cacheUpdate(url, newEntity);
-      cout<<"The page "<<url<<" has been replaced in cache"<<endl;
-      return newEntity; //return the page from the server
+
+    int http_sd;
+
+    if ((http_sd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
+
+        fprintf(stderr, "HTTP socket creating error\n");
+
+//        char* errorMessage = strerror_r(errno, errorbuffer, 256);
+//        printf(errorMessage);
+//	      cout << errorMessage << endl;
+
+        exit(1);
+
     }
-  }
-  else
-  {
-    //if page hasnt expired in the cache
-    cout<<"The page "<<url<<" has been found in cache and it is fresh"<<endl;
-    en = stampPage(en);
-    return en;
-  }
+
+	cout << "In if modified, httpsd: " << http_sd << endl;
+
+    struct addrinfo *http_info;
+    struct addrinfo hints;
+
+    memset(&hints, 0, sizeof(hints));
+
+    hints.ai_family = AF_INET;
+
+    hints.ai_socktype = SOCK_STREAM;
+
+    if (getaddrinfo(server_name.c_str(), "http", &hints, &http_info) != 0) {
+
+        printf("getaddrinfo error\n");
+
+//        char* errorMessage = strerror_r(errno, errorbuffer, 256);
+//        printf(errorMessage);
+//	      cout << errorMessage << endl;
+
+        exit(1);
+
+    }
+
+    if (connect(http_sd, http_info->ai_addr, http_info->ai_addrlen) == -1) {
+
+        fprintf(stderr, "Connecting to http server error\n");
+
+//        char* errorMessage = strerror_r(errno, errorbuffer, 256);
+//        printf(errorMessage);
+//	      cout << errorMessage << endl;
+
+        exit(1);
+    }
+
+    int byte = 0;
+
+    string msg;
+    msg = "GET " + url + " HTTP/1.0\r\n" + "If-Modified-Since: " + since_time + "\r\n\r\n";
+
+    cout<<endl<<endl;
+
+    cout<<"Going to hit the web server with the conditional request: "<<endl<<msg;
+
+    if ((byte = send(http_sd, msg.c_str(), msg.length(), 0)) <=0) {
+
+        fprintf(stderr, "Sending error\n");
+//        char* errorMessage = strerror_r(errno, errorbuffer, 256);
+//        printf(errorMessage);
+//        cout << errorMessage << endl;
+
+        exit(1);
+
+    }
+
+    byte = 0;
+    char recv_buffer[1048576];
+
+    if ((byte = recv(http_sd, recv_buffer, 1048576, 0)) <= 0) {
+
+        fprintf(stderr, "receiving error\n");
+
+//        char* errorMessage = strerror_r(errno, errorbuffer, 256);
+//        printf(errorMessage);
+//	      cout << errorMessage << endl;
+
+        exit(1);
+
+    }
+
+    close(http_sd);
+
+    string str(recv_buffer);
+
+    string temp(str);
+
+    vector<string> v1 = string_split(temp, "\r\n");
+
+    string status(v1.at(0));
+
+    cout<<"The response from the web server is: "<<status<<endl<<endl;
+
+    vector<string> v = string_split(status, " ");
+    string blank;
+
+    if (v.at(1) == not_modified) {
+
+        return blank;
+
+    } else {
+
+        return str;
+
+    }
+
 }
 
 
-/*
- * method to handle pages that are not found in the cache
- */
-Entity* pageNotFound(string url)
-{
-//  int* pageLen = new int;
-  cout<<"The page "<<url<<" was not found in the cache"<<endl;
-//  string page = getContentFromWebServer(url, pageLen);
-  string page = getContentFromWebServer(url);
 
-//  Entity* newPage = parseResponse(page, *pageLen);
-  Entity* newPage = parseResponse(page);
-  if(newPage != NULL)
-    cout<<"We have a new page"<<endl;
+Entity* page_not_found(string url) {
 
-  cacheAdd(url, newPage);
-  cout<<"The page "<<url<<" has been stored in cache"<<endl;
+    // handle pages which are not found in the cache
 
-  return newPage;
+    cout<<"The page "<<url<<" can not be found in the cache"<<endl;
+
+    string page = get_content_from_web_server(url);
+
+    Entity* new_page = parse_response(page);
+
+    if (new_page != NULL) {
+
+        cout<<"We have a new page"<<endl;
+
+    }
+
+    cache_add(url, new_page);
+
+    cout<<"The page "<<url<<" has been stored in cache"<<endl;
+
+    return new_page;
+
 }
 
-void printCache()
-{
-  Entity* en;
-  map<string, Entity*>::iterator ii = cache.begin();
-  string key, sla;
-  cout<<endl;
-  cout<<"======Proxy Cache======"<<endl;
-  cout<<"Size of the cache: "<<cache.size()<<endl;
-  for(; ii != cache.end(); ii++)
-  {
-    key = ii->first;
-    en = ii->second;
 
-    EntityHeader* hdr = en->getHeader();
-    time_t la = hdr->getLastAccessed();
-    sla = fromTimeT(la);
 
-    cout<<"page: "<<key<<", last accessed: "<<sla<<endl;
-  }
+Entity* page_found(string url) {
+
+    // handle pages that are found in the cache
+
+    map<string, Entity*>::iterator ii = ca.find(url);
+    Entity* en = ii->second;
+
+    string exp = en->get_header()->get_expires();
+
+    if (exp.empty()) {
+
+        exp = en->get_header()->get_last_modified();
+
+        if (exp.empty()) {
+
+            exp = en->get_header()->get_date();
+
+        }
+
+    }
+
+    int current, ex_int;
+    time_t ex = to_Time_T(exp);
+
+    if (ex <= 0) {
+
+        cout<<"The expires field is not a timestamp: "<<exp;
+
+        ex_int = -1;
+
+    } else {
+
+        ex_int = int(ex);
+
+    }
+
+    current = int(get_current_time());
+
+    if (current > ex_int) {
+
+        cout<<"A page's entry in the cache expired"<<endl;
+
+        string pageExpired = get_content_from_web_server_if_modified(url, exp);
+
+        if (pageExpired.empty()) {
+
+            cout<<"No need to get the page "<<url<<" from the server which was not modified on the server"<<endl;
+
+            en = stamp_page(en); //serve from cache itself
+
+        } else {
+
+            Entity* newEntity = parse_response(pageExpired);
+            cache_update(url, newEntity);
+
+            cout<<"The page "<<url<<" has been replaced in cache"<<endl;
+
+            return newEntity;
+
+        }
+    } else { //if page hasnt expired in the cache
+
+        cout<<"The page "<<url<<" has been found in cache and it is fresh"<<endl;
+
+        en = stamp_page(en);
+
+        return en;
+
+    }
+
+}
+
+
+
+void print_cache() {
+
+    Entity* en;
+    map<string, Entity*>::iterator it = ca.begin();
+
+    string key, sla;
+
+    cout<<endl;
+
+    cout<<"******Proxy Cache******"<<endl;
+
+    cout<<"Size of the cache: "<<ca.size()<<endl;
+
+    for (; it != ca.end(); it++) {
+
+        key = it->first;
+        en = it->second;
+
+        Entity_Header* hdr = en->get_header();
+        time_t la = hdr->get_last_accessed();
+
+        sla = from_Time_T(la);
+
+        cout<<"page: "<<key<<", last accessed: "<<sla<<endl;
+
+    }
+
 }
