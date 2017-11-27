@@ -13,11 +13,13 @@
 using namespace std;
 
 
+
 string date("Date");
 
 string lastMod("Last-Modified");
 
 string expires("Expires");
+
 
 
 char* format = strdup("%a, %d %b %Y %H:%M:%S %Z");
@@ -169,6 +171,26 @@ string Entity::to_string() {
 }
 
 
+
+bool is_get_req(char *t) {
+
+    string get_St("GET");
+    string st(t);
+
+    if (get_St == st) {
+
+        return 1;
+
+    } else {
+
+        return 0;
+
+    }
+
+}
+
+
+
 string extract_uri(char *http_request) {
 
     char* token = (char*)malloc(sizeof(char*));
@@ -189,24 +211,6 @@ string extract_uri(char *http_request) {
     string req_uri(tokens[1]);
 
     return req_uri;
-
-}
-
-
-bool is_get_req(char *t) {
-
-    string get_St("GET");
-    string st(t);
-
-    if (get_St == st) {
-
-        return 1;
-
-    } else {
-
-        return 0;
-
-    }
 
 }
 
@@ -369,7 +373,7 @@ time_t to_Time_T(string t) {
 
     if (ret == NULL) {
 
-        cout<<"The string "<<t<<" was not recognized as a date format"<<endl;
+        cout<<"The string "<<t<<" was not in a date format"<<endl;
 
         return -1;
 
