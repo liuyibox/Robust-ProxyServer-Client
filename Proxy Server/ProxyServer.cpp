@@ -41,7 +41,7 @@ Entity* page_not_found(string);
 int main(int argc, char*argv[]) {
 
     int i;
-    int clientSd;
+    int client_sd;
     int fdmax;
 
     int maxclients = 5;
@@ -52,7 +52,7 @@ int main(int argc, char*argv[]) {
 
     char error_buffer[256];
 
-    fd_set readfds;
+    fd_set read_fd;
 
     fd_set master;
 
@@ -127,7 +127,7 @@ int main(int argc, char*argv[]) {
         exit(3);
     }
 
-    FD_ZERO(&readfds);
+    FD_ZERO(&read_fd);
 
     FD_ZERO(&master);
 
@@ -140,13 +140,13 @@ int main(int argc, char*argv[]) {
     while(1) {
 
         printf("\n");
-        readfds = master;
+        read_fd = master;
 
         memset(copy_buffer, 0, sizeof(copy_buffer));
 
         memset(recv_buffer, 0, sizeof(recv_buffer));
 
-        if (select(fdmax + 1, &readfds, NULL, NULL, NULL) == -1) {
+        if (select(fdmax + 1, &read_fd, NULL, NULL, NULL) == -1) {
 
             fprintf(stderr, "Select error\n");
 
@@ -160,14 +160,14 @@ int main(int argc, char*argv[]) {
 
         for (i = 3; i <= fdmax; i++) {
 
-            if (FD_ISSET(i, &readfds)) {
+            if (FD_ISSET(i, &read_fd)) {
 
                 if (i == serverSd) {
 
                     u_int clientLen = sizeof(client_addr_info);
-                    clientSd = accept(serverSd, (struct sockaddr*) &client_addr_info, &clientLen);
+                    client_sd = accept(serverSd, (struct sockaddr*) &client_addr_info, &clientLen);
 
-                    if (clientSd < 0) {
+                    if (client_sd < 0) {
 
                         fprintf(stderr, "Could not accept connection\n");
 //                        char* errorMessage = strerror_r(errno, errorbuffer, 256);
@@ -176,11 +176,11 @@ int main(int argc, char*argv[]) {
 
                     } else {
 
-                        FD_SET(clientSd, &master);
+                        FD_SET(client_sd, &master);
 
-                        if (clientSd > fdmax) {
+                        if (client_sd > fdmax) {
 
-                            fdmax = clientSd;
+                            fdmax = client_sd;
 
                         }
 
@@ -240,7 +240,7 @@ int main(int argc, char*argv[]) {
 void cache_add(string url, Entity *entity) {
 
     // add new entries to the cache using LRU
-    
+
     if (ca.size() < MAX_CACHE_SIZE) {
 
         cout<<"Current size of cache: "<<ca.size()<<", is smaller than the max, directly inserting"<<endl;
@@ -328,15 +328,15 @@ string get_content_from_web_server(string url) {
 
     if (url.at(break_point_1) == '/' && url.at(break_point_1+1) == '/') {
 
-        break_point_2 = url.substr(break_point_1+2, url.length()-1).find("/");
+        break_point_2 = url.substr(break_point_1 + 2, url.length() - 1).find("/");
 
-        server_name = url.substr(break_point_1+2, break_point_2);
-        loc = url.substr(break_point_2+break_point_1+2, url.length()-1);
+        server_name = url.substr(break_point_1 + 2, break_point_2);
+        loc = url.substr(break_point_2 + break_point_1 + 2, url.length() - 1);
 
     } else {
 
         server_name = url.substr(0, break_point_1);
-        loc = url.substr(break_point_1, url.length()-1);
+        loc = url.substr(break_point_1, url.length() - 1);
 
     }
 
@@ -442,22 +442,22 @@ string get_content_from_web_server_if_modified(string url, string since_time) {
 
     string loc;
 
-    char errorbuffer[256];
+    char error_buffer[256];
 
     break_point_1 = url.find("/");
 
     if (url.at(break_point_1) == '/' && url.at(break_point_1+1) == '/') {
 
-        break_point_2 = url.substr(break_point_1+2, url.length()-1).find("/");
+        break_point_2 = url.substr(break_point_1 + 2, url.length() - 1).find("/");
 
-        server_name = url.substr(break_point_1+2, break_point_2);
+        server_name = url.substr(break_point_1 + 2, break_point_2);
 
-        loc = url.substr(break_point_2+break_point_1+2, url.length()-1);
+        loc = url.substr(break_point_2 + break_point_1 + 2, url.length() - 1);
 
     } else {
 
         server_name = url.substr(0, break_point_1);
-        loc = url.substr(break_point_1, url.length()-1);
+        loc = url.substr(break_point_1, url.length() - 1);
 
     }
 
